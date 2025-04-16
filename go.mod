@@ -1,3 +1,3 @@
-module github.com/haguro/elevenlabs-go
+module github.com/tema9984/elevenlabs-go
 
-go 1.18
+go 1.23

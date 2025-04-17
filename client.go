@@ -42,11 +42,13 @@ type Client struct {
 	apiKey  string
 	timeout time.Duration
 	ctx     context.Context
+	client  *http.Client
 }
 
 func getDefaultClient() *Client {
+	client := &http.Client{}
 	once.Do(func() {
-		defaultClient = NewClient(context.Background(), "", defaultTimeout)
+		defaultClient = NewClient(client, context.Background(), "", defaultTimeout)
 	})
 	return defaultClient
 }
@@ -77,13 +79,14 @@ func SetTimeout(timeout time.Duration) {
 // a time.Duration argument that represents the timeout duration for the client's requests.
 //
 // It returns a pointer to a newly created Client.
-func NewClient(ctx context.Context, apiKey string, reqTimeout time.Duration) *Client {
-	return &Client{baseURL: elevenlabsBaseURL, apiKey: apiKey, timeout: reqTimeout, ctx: ctx}
+func NewClient(client *http.Client, ctx context.Context, apiKey string, reqTimeout time.Duration) *Client {
+	return &Client{client: client, baseURL: elevenlabsBaseURL, apiKey: apiKey, timeout: reqTimeout, ctx: ctx}
 }
 
 func (c *Client) doRequest(ctx context.Context, RespBodyWriter io.Writer, method, url string, bodyBuf io.Reader, contentType string, queries ...QueryFunc) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
+
 	req, err := http.NewRequestWithContext(timeoutCtx, method, url, bodyBuf)
 	if err != nil {
 		return err
@@ -103,8 +106,7 @@ func (c *Client) doRequest(ctx context.Context, RespBodyWriter io.Writer, method
 	}
 	req.URL.RawQuery = q.Encode()
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return err
 	}

@@ -12,8 +12,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 )
@@ -225,7 +223,7 @@ func (c *Client) TextToSpeech(voiceID string, ttsReq TextToSpeechRequest, querie
 	return b.Bytes(), nil
 }
 
-func (c *Client) SpeechToText(modelID string, file *os.File, queries ...QueryFunc) ([]byte, error) {
+func (c *Client) SpeechToText(modelID string, file io.Reader, queries ...QueryFunc) ([]byte, error) {
 	// Создаем буфер для multipart формы
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -236,7 +234,7 @@ func (c *Client) SpeechToText(modelID string, file *os.File, queries ...QueryFun
 	}
 
 	// Добавляем файл
-	part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
+	part, err := writer.CreateFormFile("file", "file")
 	if err != nil {
 		return nil, err
 	}

@@ -9,8 +9,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -220,6 +223,51 @@ func (c *Client) TextToSpeech(voiceID string, ttsReq TextToSpeechRequest, querie
 		return nil, err
 	}
 	return b.Bytes(), nil
+}
+
+func (c *Client) SpeechToText(modelID string, file *os.File, queries ...QueryFunc) ([]byte, error) {
+	// Создаем буфер для multipart формы
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// Добавляем поле model_id
+	if err := writer.WriteField("model_id", modelID); err != nil {
+		return nil, err
+	}
+
+	// Добавляем файл
+	part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
+	if err != nil {
+		return nil, err
+	}
+
+	// Копируем содержимое файла в часть формы
+	if _, err := io.Copy(part, file); err != nil {
+		return nil, err
+	}
+
+	// Закрываем writer для завершения формирования формы
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+
+	// Выполняем запрос
+	respBody := &bytes.Buffer{}
+	err = c.doRequest(
+		c.ctx,
+		respBody,
+		http.MethodPost,
+		fmt.Sprintf("%s/speech-to-text", c.baseURL),
+		body,
+		writer.FormDataContentType(), // Автоматически добавляет boundary
+		queries...,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return respBody.Bytes(), nil
 }
 
 // TextToSpeech converts and streams a given text to speech audio using a certain voice.
